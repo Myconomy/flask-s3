@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = '0.1.6-mcnm1'
+__version__ = '0.1.6-mcnm2'
 __author__ = 'Edward Robinson'
 __license__ = 'WTFPL'
 
@@ -135,7 +135,7 @@ def _write_files(app, static_url_loc, static_folder, files, bucket,
             finished = True
             for n, task in enumerate(tasks):
                 if task.ready():
-                    if not task.successfull():
+                    if not task.successful():
                         logger.error("Error while uploading %s!", files[n])
                         if retries[n] < app.config.get("S3_PARALLEL_RETRIES", 0):
                             retries[n] += 1
