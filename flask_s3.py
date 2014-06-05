@@ -149,10 +149,14 @@ def _write_files(app, static_url_loc, static_folder, files, bucket,
                     logger.debug('%s uploaded', files[n])
                 else:
                     finished = False
+        try:
+            files_tqdm.next()
+        except StopIteration:
+            pass
         pool.close()
         pool.join()
     else:
-        for file_path in files:
+        for file_path in files_tqdm:
             _write_file(static_url_loc, static_folder, bucket, ex_keys, file_path,
                         app.config['S3_HEADERS'].items())
 
