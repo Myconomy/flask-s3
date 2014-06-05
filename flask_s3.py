@@ -128,14 +128,28 @@ def _write_files(app, static_url_loc, static_folder, files, bucket,
                 static_url_loc, static_folder, bucket, ex_keys, file_path,
                 app.config['S3_HEADERS'].items()
             )))
-        pool.close()
-        while tasks:
-            for n, res in enumerate(list(tasks)):
+        retries = [0 for i in files]
+        finished = False
+        while not finished:
+            sleep(.1)
+            finished = True
+            for n, res in enumerate(tasks):
                 if res.ready():
+                    if not task.successfull():
+                        logger.error("Error while uploading %s!", files[n])
+                        if retries[n] < app.config.get("S3_PARALLEL_RETRIES", 0):
+                            retries[n] += 1
+                            finished = False
+                            tasks.append(pool.apply_async(_write_file, (
+                                static_url_loc, static_folder, bucket, ex_keys,
+                                files[n], app.config['S3_HEADERS'].items()
+                            )))
                     files_tqdm.next()
                     tasks.remove(res)
                     logger.debug('%s uploaded', files[n])
-            sleep(.1)
+                else:
+                    finished = False
+        pool.close()
         pool.join()
     else:
         for file_path in files:
