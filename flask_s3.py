@@ -133,8 +133,8 @@ def _write_files(app, static_url_loc, static_folder, files, bucket,
         while not finished:
             sleep(.1)
             finished = True
-            for n, res in enumerate(tasks):
-                if res.ready():
+            for n, task in enumerate(tasks):
+                if task.ready():
                     if not task.successfull():
                         logger.error("Error while uploading %s!", files[n])
                         if retries[n] < app.config.get("S3_PARALLEL_RETRIES", 0):
@@ -145,7 +145,7 @@ def _write_files(app, static_url_loc, static_folder, files, bucket,
                                 files[n], app.config['S3_HEADERS'].items()
                             )))
                     files_tqdm.next()
-                    tasks.remove(res)
+                    tasks.remove(task)
                     logger.debug('%s uploaded', files[n])
                 else:
                     finished = False
