@@ -8,6 +8,8 @@ __license__ = 'WTFPL'
 import os
 import logging
 from collections import defaultdict
+from multiprocessing.pool import ThreadPool
+from time import sleep
 
 from flask import url_for as flask_url_for
 from flask import current_app
@@ -111,32 +113,56 @@ def _write_files(app, static_url_loc, static_folder, files, bucket,
     """ Writes all the files inside a static folder to S3. """
 
     if logger.level == logging.INFO:
-        files = tqdm(
+        files_tqdm = tqdm(
             files,
             desc='Uploading from {0} to {1}'.format(
                 static_url_loc,
                 bucket.name))
 
-    for file_path in files:
-        asset_loc = _path_to_relative_url(file_path)
-        key_name = _static_folder_path(static_url_loc, static_folder,
-                                       asset_loc)
-        msg = "Uploading {0} to {1} as {2}".format(file_path, bucket, key_name)
-        logger.debug(msg)
-        if ex_keys and key_name in ex_keys:
-            logger.debug("{0} excluded from upload".format(key_name))
-        else:
-            k = Key(bucket=bucket, name=key_name)
-            # Set custom headers
-            for header, value in app.config['S3_HEADERS'].iteritems():
-                k.set_metadata(header, value)
-            k.set_contents_from_filename(file_path)
-            k.make_public()
+    num = app.config.get('S3_PARALLEL_UPLOADS', None)
+    if num is not None:
+        pool = ThreadPool(num)
+        tasks = []
+        for file_path in files:
+            tasks.append(pool.apply_async(_write_file, (
+                static_url_loc, static_folder, bucket, ex_keys, file_path,
+                app.config['S3_HEADERS'].items()
+            )))
+        pool.close()
+        while tasks:
+            for n, res in enumerate(list(tasks)):
+                if res.ready():
+                    files_tqdm.next()
+                    tasks.remove(res)
+                    logger.debug('%s uploaded', files[n])
+            sleep(.1)
+        pool.join()
+    else:
+        for file_path in files:
+            _write_file(static_url_loc, static_folder, bucket, ex_keys, file_path,
+                        app.config['S3_HEADERS'].items())
+
+
+def _write_file(static_url_loc, static_folder, bucket, ex_keys, file_path,
+                headers):
+    asset_loc = _path_to_relative_url(file_path)
+    key_name = _static_folder_path(static_url_loc, static_folder,
+                                   asset_loc)
+    msg = "Uploading {0} to {1} as {2}".format(file_path, bucket, key_name)
+    logger.debug(msg)
+    if ex_keys and key_name in ex_keys:
+        logger.debug("{0} excluded from upload".format(key_name))
+    else:
+        k = Key(bucket=bucket, name=key_name)
+        for header, value in headers:
+            k.set_metadata(header, value)
+        k.set_contents_from_filename(file_path)
+        k.make_public()
 
 
 def _upload_files(app, files_, bucket):
-    for (static_folder, static_url), names in files_.iteritems():
-        _write_files(app, static_url, static_folder, names, bucket)
+        for (static_folder, static_url), names in files_.iteritems():
+            _write_files(app, static_url, static_folder, names, bucket)
 
 
 def _get_or_create_bucket(conn, bucket_name, location):
