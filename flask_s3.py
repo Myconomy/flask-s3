@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = '0.1.6-mcnm3'
+__version__ = '0.1.6-mcnm4'
 __author__ = 'Edward Robinson'
 __license__ = 'WTFPL'
 
