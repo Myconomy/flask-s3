@@ -60,10 +60,10 @@ def _bp_static_url(blueprint):
     return u
 
 
-def _gather_files(app, hidden):
+def _gather_files(app, hidden, blueprints):
     """ Gets all files in static folders and returns in dict."""
     dirs = [(unicode(app.static_folder), app.static_url_path)]
-    if hasattr(app, 'blueprints'):
+    if blueprints and hasattr(app, 'blueprints'):
         blueprints = app.blueprints.values()
         bp_details = lambda x: (x.static_folder, _bp_static_url(x))
         dirs.extend([bp_details(x) for x in blueprints if x.static_folder])
@@ -206,7 +206,7 @@ def _get_or_create_bucket(conn, bucket_name, location):
 
 
 def create_all(app, user=None, password=None, bucket_name=None,
-               location='', include_hidden=False):
+               location='', include_hidden=False, include_blueprints=False):
     """
     Uploads of the static assets associated with a Flask application to
     Amazon S3.
@@ -267,7 +267,7 @@ def create_all(app, user=None, password=None, bucket_name=None,
         raise ValueError("No bucket name provided.")
 
     # build list of static files
-    all_files = _gather_files(app, include_hidden)
+    all_files = _gather_files(app, include_hidden, include_blueprints)
     for (static_folder, static_url_loc), files in all_files.iteritems():
         logger.debug(
             '{0} valid files in folder "{1}" with local url "{2}"'.format(
