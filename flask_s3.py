@@ -139,11 +139,15 @@ def _write_files(app, static_url_loc, static_folder, files, bucket,
                         logger.error("Error while uploading %s!", files[n])
                         if retries[n] < app.config.get("S3_PARALLEL_RETRIES", 0):
                             retries[n] += 1
+                            logger.info("%s: would retry (%d)", files[n],
+                                        retries[n])
                             finished = False
                             tasks.append(pool.apply_async(_write_file, (
                                 static_url_loc, static_folder, bucket, ex_keys,
                                 files[n], app.config['S3_HEADERS'].items()
                             )))
+                        else:
+                            logger.info("%s: would not retry")
                     files_tqdm.next()
                     tasks.remove(task)
                     logger.debug('%s uploaded', files[n])
@@ -266,11 +270,12 @@ def create_all(app, user=None, password=None, bucket_name=None,
     all_files = _gather_files(app, include_hidden)
     for (static_folder, static_url_loc), files in all_files.iteritems():
         logger.debug(
-            '{0} valid files in folder "{1}" with local url "{2}"'.format(len(files),
-                                                                          static_folder,
-                                                                          static_url_loc))
+            '{0} valid files in folder "{1}" with local url "{2}"'.format(
+                len(files), static_folder, static_url_loc))
+
     # connect to s3
     conn = S3Connection(user, password)
+
     # get_or_create bucket
     bucket = _get_or_create_bucket(conn, bucket_name, location)
     _upload_files(app, all_files, bucket)
@@ -317,6 +322,7 @@ class FlaskS3(object):
 
         if app.config['USE_S3']:
             app.jinja_env.globals['url_for'] = url_for
+
         if app.config['S3_USE_CACHE_CONTROL'] and 'S3_CACHE_CONTROL' in app.config:
             cache_control_header = app.config['S3_CACHE_CONTROL']
             app.config['S3_HEADERS']['Cache-Control'] = cache_control_header
