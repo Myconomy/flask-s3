@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = '0.1.6-mcnm4'
+__version__ = '0.1.6-mcnm5'
 __author__ = 'Edward Robinson'
 __license__ = 'WTFPL'
 
@@ -321,7 +321,9 @@ class FlaskS3(object):
             app.config['USE_S3'] = False
 
         if app.config['USE_S3']:
-            app.jinja_env.globals['url_for'] = url_for
+            app.jinja_env.globals['url_for_static'] = url_for
+        else:
+            app.jinja_env.globals['url_for_static'] = flask_url_for
 
         if app.config['S3_USE_CACHE_CONTROL'] and 'S3_CACHE_CONTROL' in app.config:
             cache_control_header = app.config['S3_CACHE_CONTROL']
